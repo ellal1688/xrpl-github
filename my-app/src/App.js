@@ -1,11 +1,19 @@
 import './App.css';
 import React from 'react';
-import { ChakraProvider } from "@chakra-ui/react";
-
-// import {userState} from 'react';
-import { Box, Flex, Heading } from '@chakra-ui/react';
+import { Client } from 'xrpl';
+import {useState} from 'react';
+import { Box, Flex, Heading, Input } from '@chakra-ui/react';
 import { Provider } from "./components/ui/provider"
+import { ChakraProvider } from "@chakra-ui/react";
+import { Wallet } from 'xrpl';
+import { Grid } from "@chakra-ui/react";
+import { SimpleGrid } from "@chakra-ui/react";
+
 import { Card, Stack, Button,  Spacer, Container, Text } from "@chakra-ui/react"
+import { WalletProvider } from './WalletContext';
+import { useWallet } from './WalletContext';
+import { IssueProvider, useIssues } from './IssueContext';
+import { useEffect } from 'react';
 // import { Avatar } from "./components/ui/avatar"
 // export keyword makes function global
 // default means main
@@ -24,30 +32,14 @@ import { Card, Stack, Button,  Spacer, Container, Text } from "@chakra-ui/react"
 // onclick={handleClick}
 // can put state in larger component to handle multiple components
 
-// function Header() {
-//   return (
-//     <Box bg="blue.500" color="white" w="100%" >
-//       <Flex align="center">
-//         <Heading size="md">My App</Heading>
-//         <Spacer />
-//         <Button variant="ghost" colorScheme="whiteAlpha" mr={4}>
-//           Home
-//         </Button>
-//         <Button variant="ghost" colorScheme="whiteAlpha" mr={4}>
-//           About
-//         </Button>
-//         <Button variant="ghost" colorScheme="whiteAlpha">
-//           Contact
-//         </Button>
-//       </Flex>
-//     </Box>
-//   );
-// }
 const xrpl = require("xrpl")
 
 
 
-function TaskCard({title, description, repo, status, bounty }) {
+function TaskCard({onSend, issueInfo }) {
+// function TaskCard({onSend, title, description, repo, status, bounty }) {
+  const bounty_text = issueInfo.bounty + " XRP";
+  console.log("issue info: ", issueInfo);
   return (
     <Card.Root width="320px" variant={"elevated"} key={"elevated"}>
       <Card.Body gap="2">
@@ -57,43 +49,43 @@ function TaskCard({title, description, repo, status, bounty }) {
           size="lg"
           shape="rounded"
         /> */}
-        <Card.Title mb="2">{title}</Card.Title>
-        <Card.Description>{description}</Card.Description>
-        <Text>{bounty}</Text>
+         <Grid templateColumns="67% 33% 1fr" gap={4} p={4}>
+          <div>
+            <Card.Title mb="2">{issueInfo.title}</Card.Title>
+            <Card.Description>{issueInfo.description}</Card.Description>
+          </div>
+          <Text>{bounty_text}</Text>
+
+        </Grid>
       </Card.Body>
       <Card.Footer justifyContent="flex-end">
         <Button variant="outline">View</Button>
-        <Button>Join</Button>
+        <Button colorScheme="blue" onClick={() => onSend(issueInfo, issueInfo.bounty)}>Close</Button>
       </Card.Footer>
     </Card.Root>
   )
 }
 
 
-function Taskboard() {
-  const issues = [
-    {title: 'Issue 1', description: "descr 1", repo:"testrepo", status:"open", bounty:"10"},
-    {title: 'Issue 2', description: "descr 2", repo:"testrepo", status:"open", bounty:"10"},
-    {title: 'Issue 3', description: "descr 3", repo:"testrepo", status:"open", bounty:"10"},
-  
-  ];
-
+function Taskboard({onSend, issues, boardTitle}) {
   return (
     <Provider>
 
       <Box p={4}>
-        <Heading>Taskboard</Heading>
+        <Heading>{boardTitle}</Heading>
         <Flex>
           <Stack spacing={4} w="75%">
             {/* <Box bg="gray.200" p={4}>To Do</Box> */}
             {issues.map((issue, index) => (
               <TaskCard 
                 key={index} 
-                title={issue.title} 
-                description={issue.description} 
-                repo={issue.repo}
-                status={issue.status}
-                bounty={issue.bounty}
+                onSend={onSend}
+                issueInfo = {issue}
+                // title={issue.title} 
+                // description={issue.description} 
+                // repo={issue.repo}
+                // status={issue.status}
+                // bounty={issue.bounty}
               />
             ))}
           </Stack>
@@ -104,32 +96,133 @@ function Taskboard() {
   );
 }
 
+// function that calls all events happening upon closing an issue
+// function closeIssue({issue, onSend, bounty}){
+//   const {openIssues, setOpenIssues, closedIssues, setClosedIssues} = useIssues();
 
-// export default Taskboard;
+//     // sends payment
+//     onSend(bounty);
+//     // move issue from openissues to closed issues SO THEY SHOULD BE STATES
+//     setOpenIssues(openIssues.filter(item => item !== issue));
+//     setClosedIssues([...closedIssues, issue]);
 
-async function App() {
-  // Define the network client
-  const client = new xrpl.Client("wss://s.altnet.rippletest.net:51233")
-  await client.connect()
+// }
 
-  // create wallet instance and generate keys
-  const test_wallet = xrpl.Wallet.generate()
+function App() {
+   // set up source wallet
+   // create state var destinationAddress - value of dest wallet 
+   // init as ''
+   const SOURCE_SEED = "sEdVND7M6aDSV3xbNpYUzrWYtm1Mbo6"; // rUvc2W7pr6aNK2bfncmntdidfkXYAfFNR1
+    const USER_SEED = 'sEdTr8wYNvu2bKkUY8WRFpyenQUTSNy';  //rEuHyqbdAJfvsbzRLkD9aHDZPMyNJM83H2
+
+   const { sourceWallet, setSourceWallet, userWallet, setUserWallet } = useWallet();
+
+   const [transactionStatus, setTransactionStatus] = useState('');
+   const [sending, setSending] = useState(false);
+
+   const {openIssues, setOpenIssues, closedIssues, setClosedIssues} = useIssues();
+// add args amount
+
+  useEffect(() => {
+    // Initialize wallets once
+    try {
+      setSourceWallet(Wallet.fromSeed(SOURCE_SEED));
+      setUserWallet(Wallet.fromSeed(USER_SEED));
+    } catch (error) {
+      console.error("Error setting wallets:", error);
+    }
+  }, [setSourceWallet, setUserWallet]);
+
+
+  async function sendPayment(amount){
+    console.log("sp amount", amount); // UNDEFINED
+    // setSourceWallet(Wallet.fromSeed(SOURCE_SEED));
+    // setUserWallet(Wallet.fromSeed(USER_SEED));
+
+    setSending(true);
+    setTransactionStatus('Sending XRP...');
+    const client = new xrpl.Client("wss://s.altnet.rippletest.net:51233");
+
+    console.log("source, user:  ", sourceWallet,userWallet);
+    // SOURCE AND USER ARE BOTH NULL, ISSUE IS UNDEFINED
+    try {
+      // Connect to the XRP Ledger
+      await client.connect();
+      // Create a payment transaction
+      const prepared =  await client.autofill({
+          TransactionType: "Payment",
+          Account: sourceWallet.address, // Sender's address
+          Destination: userWallet.address, // Receiver's address
+          Amount: amount, // Amount to send in drops
+      });
+
+      const signed = sourceWallet.sign(prepared)
+      console.log("Identifying hash:", signed.hash)
+      console.log("Signed blob:", signed.tx_blob)
+
+      const tx = await client.submitAndWait(signed.tx_blob)
+
+      // Check transaction results -------------------------------------------------
+      const balances = await client.getBalances(userWallet.address);
+      console.log("Transaction result:", tx.result.meta.TransactionResult)
+      console.log("Balance changes:", JSON.stringify(xrpl.getBalanceChanges(tx.result.meta), null, 2))
+      balances.forEach((balance) => {
+        console.log(`Currency: ${balance.currency}`);
+        console.log(`Value: ${balance.value}`);
+        console.log(`Issuer: ${balance.issuer}`);
+        console.log('---');
+      });
+
+    } catch (error) {
+        console.error("Error sending payment: ", error);
+    } finally {
+        // Close the client connection
+        await client.disconnect();
+    }
+
+  }
+
+  function closeIssue(issue, bounty){
+    // const {openIssues, setOpenIssues, closedIssues, setClosedIssues} = useIssues();
+      // sends payment
+      sendPayment(bounty);
+      console.log("bounty: ", bounty);
+      console.log("issue: ", issue);
+
+      setOpenIssues(openIssues.filter(item => item !== issue));
+      setClosedIssues([...closedIssues, issue]);
   
-
+  }
+  // const [openIssues, setOpenIssues] = useState([
+  //   {title: 'Issue 1', description: "descr 1", repo:"testrepo", status:"open", bounty:"10"},
+  //   {title: 'Issue 2', description: "descr 2", repo:"testrepo", status:"open", bounty:"20"},
+  //   {title: 'Issue 3', description: "descr 3", repo:"testrepo", status:"open", bounty:"30"},
+  // ]);
  
-  return (
-    <Provider>
-    <div className="App">
-      <header className="App-header">
-        <Text>Welcome, Ella</Text>
-        <Taskboard/>
-      </header>
-    </div>
-    </Provider>
-  );
-   
-  // Disconnect when done (If you omit this, Node.js won't end the process)
-  await client.disconnect()
+  // const [closedIssues, setClosedIssues] = useState([]);
+
+    return (
+      <Provider>
+        <WalletProvider>
+          <IssueProvider>
+        <div className="App">
+          <header className="App-header">
+            <Text>Issue XRP</Text>
+            <Text>receive XRP for closing open-source Github issues</Text>
+            <SimpleGrid columns={3} spacing={4} p={4}>
+            
+              <Taskboard onSend={closeIssue} issues={openIssues} boardTitle="Your Issues"/>
+              <Taskboard onSend={closeIssue}  issues={closedIssues} boardTitle="Closed Issues"/>
+              {/* add my wallet  */}
+            </SimpleGrid>
+            
+          </header>
+        </div>
+        </IssueProvider>
+      </WalletProvider>
+      </Provider>
+    );
+  
 }
 
 export default App;
