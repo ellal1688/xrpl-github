@@ -14,6 +14,8 @@ import { WalletProvider } from './WalletContext';
 import { useWallet } from './WalletContext';
 import { IssueProvider, useIssues } from './IssueContext';
 import { useEffect } from 'react';
+// import theme from './theme';  // Import the custom theme
+
 // import { Avatar } from "./components/ui/avatar"
 // export keyword makes function global
 // default means main
@@ -34,22 +36,22 @@ import { useEffect } from 'react';
 
 const xrpl = require("xrpl")
 
-function getRepositoryName(issue) {
-  const repositoryUrl = issue.repository_url;
-  const repoName = repositoryUrl.split('/').pop();
-  return repoName;
-}
 
+function TaskCard({onSend, issueInfo ,bounty}) {
+  
+  function getRepositoryName(issue) {
+    const repositoryUrl = issue.repository_url;
+    const repoName = repositoryUrl.split('/').pop();
+    return repoName;
+  }
 
-function TaskCard({onSend, issueInfo }) {
-// function TaskCard({onSend, title, description, repo, status, bounty }) {
-   const bounty_text = issueInfo.bounty + " XRP";
-  // console.log("bounty text ", bounty_text)
+  const bounty_text = bounty + " XRP";
+  console.log("bounty text ", bounty)
   // console.log("issue info: ", issueInfo);
-  // const repo_name = getRepositoryName(issueInfo);
-  // const issue_id = repo_name + " #" + issueInfo.number;
+  const repo_name = getRepositoryName(issueInfo);
+  const issue_id = repo_name + " #" + issueInfo.number;
   // console.log("issue id", issue_id);
-
+    // console.log("issue info: ", issueInfo);
   return (
     <Card.Root width="320px" variant={"elevated"} key={"elevated"}>
       <Card.Body gap="2">
@@ -61,16 +63,16 @@ function TaskCard({onSend, issueInfo }) {
         /> */}
          <Grid templateColumns="67% 33% 1fr" gap={4} p={4}>
           <div>
-            <Card.Title mb="2">{issueInfo.title}</Card.Title>
-            <Card.Description>{issueInfo.description}</Card.Description>
+          <Card.Description fontFamily="mono">{issue_id}</Card.Description>
+          <Card.Title fontFamily="mono" mb="2">{issueInfo.title}</Card.Title>
           </div>
-          <Text>{bounty_text}</Text>
+          <Text fontFamily="mono">{bounty_text}</Text>
 
         </Grid>
       </Card.Body>
       <Card.Footer justifyContent="flex-end">
         <Button variant="outline">View</Button>
-        <Button colorScheme="blue" onClick={() => onSend(issueInfo, issueInfo.bounty)}>Close</Button>
+        <Button colorScheme="blue" onClick={() => onSend(issueInfo, bounty)}>Close</Button>
       </Card.Footer>
     </Card.Root>
   )
@@ -82,7 +84,7 @@ function Taskboard({onSend, issues, boardTitle}) {
     <Provider>
 
       <Box p={4}>
-        <Heading>{boardTitle}</Heading>
+        <Heading fontFamily="mono">{boardTitle}</Heading>
         <Flex>
           <Stack spacing={4} w="75%">
             {/* <Box bg="gray.200" p={4}>To Do</Box> */}
@@ -95,7 +97,7 @@ function Taskboard({onSend, issues, boardTitle}) {
                 // description={issue.description} 
                 // repo={issue.repo}
                 // status={issue.status}
-                // bounty={issue.bounty}
+                bounty={"10"}
               />
             ))}
           </Stack>
@@ -133,7 +135,7 @@ function WalletDisplay({walletBalance}){
 
   return (
     <div>
-    <Heading>"My Wallet"</Heading>
+    <Heading fontFamily="mono">My Wallet</Heading>
     <Card.Root width="320px" variant={"outline"} key={"outline"}>
       <Card.Body gap="2">
         {/* <Avatar
@@ -142,7 +144,7 @@ function WalletDisplay({walletBalance}){
           size="lg"
           shape="rounded"
         /> */}
-         {walletBalance} XRP
+        <Text fontFamily="mono">{walletBalance} XRP </Text> 
       </Card.Body>
       {/* <Card.Footer justifyContent="flex-end">
         <Button variant="outline">View</Button>
@@ -153,7 +155,7 @@ function WalletDisplay({walletBalance}){
   )
 }
 function AccountDisplay({walletBalance}){
-  console.log("walletdsiply ", {walletBalance});
+  // console.log("walletdsiply ", {walletBalance});
 
   return (
     <Provider>
@@ -181,7 +183,6 @@ function App() {
    const [transactionStatus, setTransactionStatus] = useState('');
    const [sending, setSending] = useState(false);
   const [walletBalance, setWalletBalance] = useState(null);
-  const username = "ellal1688" // hardcoded for now
 
   useEffect(() => {
     
@@ -193,7 +194,7 @@ function App() {
     }
   }, [setSourceWallet, setUserWallet]);
 
-  console.log("source, user:  ", sourceWallet,userWallet);
+  // console.log("source, user:  ", sourceWallet,userWallet);
 
   
   useEffect(() => {
@@ -215,7 +216,7 @@ function App() {
   }, []); 
 
   async function sendPayment(amount){
-    console.log("sp amount", amount); // UNDEFINED
+    // console.log("sp amount", amount); // UNDEFINED
     // setSourceWallet(Wallet.fromSeed(SOURCE_SEED));
     // setUserWallet(Wallet.fromSeed(USER_SEED));
 
@@ -234,7 +235,6 @@ function App() {
           Destination: userWallet.address, // Receiver's address
           Amount: amount, // Amount to send in drops
       });
-
       const signed = sourceWallet.sign(prepared)
       console.log("Identifying hash:", signed.hash)
       console.log("Signed blob:", signed.tx_blob)
@@ -264,15 +264,62 @@ function App() {
   function closeIssue(issue, bounty){
     // const {openIssues, setOpenIssues, closedIssues, setClosedIssues} = useIssues();
       // sends payment
+      // console.log("bounty close issue ", bounty);
       sendPayment(bounty);
-      console.log("bounty: ", bounty);
-      console.log("issue: ", issue);
+      // console.log("bounty: ", bounty);
+      // console.log("issue: ", issue);
 
       setOpenIssues(openIssues.filter(item => item !== issue));
       setClosedIssues([...closedIssues, issue]);
   
   }
  
+  const [repoIssues, setRepoIssues] = useState(null);
+  async function getIssuesFromGitHub(owner, repo) {
+    const url = `https://api.github.com/repos/${owner}/${repo}/issues`;
+    
+    try {
+      // console.log("before retriving github issues ");
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Network response failed');
+      }
+      // Get the JSON data from the response
+      const issues =(await response.json());
+      // Process the issues data
+      // console.log('GitHub Issues:', issues);
+      setRepoIssues(issues);
+      return issues;
+    } catch (error) {
+      console.error('Error fetching issues:', error);
+    }
+  }
+  
+  useEffect(() => {
+    const fetchIssues = async () => {
+      try {
+        const issues = await getIssuesFromGitHub('ellal1688', 'xrpl-test-repo'); // Replace with your repository details
+        setRepoIssues(issues); // Set the repoIssues state with fetched data
+      } catch (error) {
+        console.error("Error loading repo issues:", error);
+      }
+    };
+
+    fetchIssues();
+  }, []); // Empty dependency array ensures this effect only runs once
+  // REPO ISSUES IS NULL
+  
+  useEffect(() => {
+      // Ensure repoIssues is available before setting openIssues
+      if (repoIssues) {
+        setOpenIssues(repoIssues); // Update openIssues after repoIssues is updated
+      }
+    }, [repoIssues]); // This effect runs when repoIssues changes
+
+    // console.log("Repo Issues:", repoIssues);
+    // console.log("Open Issues:", openIssues);
+
+
 
     return (
       <Provider>
@@ -280,11 +327,13 @@ function App() {
         <IssueProvider>
         <div className="App">
           <header className="App-header">
-            <Text>Issue XRP</Text>
-            <Text>receive XRP for closing open-source Github issues</Text>
+            <div>
+            <Text fontFamily="mono">Issue XRP</Text>
+            <Text fontFamily="mono">receive XRP for closing open-source Github issues</Text>
+            </div>
             <SimpleGrid columns={3} spacing={4} p={4}>
             
-              <Taskboard onSend={closeIssue} issues={openIssues} boardTitle="Your Issues"/>
+              <Taskboard onSend={closeIssue} issues={openIssues} boardTitle="My Issues"/>
               <Taskboard onSend={closeIssue}  issues={closedIssues} boardTitle="Closed Issues"/>
               <AccountDisplay walletBalance={walletBalance}/>
             </SimpleGrid>
