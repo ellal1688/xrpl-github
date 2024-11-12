@@ -95,36 +95,85 @@ function Taskboard({onSend, issues, boardTitle}) {
 
   );
 }
+function WalletDisplay({walletBalance}){
+  // THIS ONLY WORKS SOMETIMES...
+  console.log("user wallet ", walletBalance);
+  const [balance, setBalance] = useState(null);
 
-// function that calls all events happening upon closing an issue
-// function closeIssue({issue, onSend, bounty}){
-//   const {openIssues, setOpenIssues, closedIssues, setClosedIssues} = useIssues();
+  
+  // useEffect(() => {
+  //   const fetchBalance = async () => {
+  //     if (!userWallet || !userWallet.address) {
+  //       return; // If the userWallet is not yet set, don't fetch balance
+  //     }
+  //     try {
+  //       const client = new Client("wss://s.altnet.rippletest.net:51233");
+  //       await client.connect();
+  //       const balances = await client.getBalances(userWallet.address);
+  //       setBalance(balances[0]?.value);  // Assuming the first balance is the one you want
+  //       await client.disconnect();
+  //     } catch (error) {
+  //       console.error("Error fetching balance:", error);
+  //     }
+  //   };
+  //   fetchBalance();
+  // }, []); 
 
-//     // sends payment
-//     onSend(bounty);
-//     // move issue from openissues to closed issues SO THEY SHOULD BE STATES
-//     setOpenIssues(openIssues.filter(item => item !== issue));
-//     setClosedIssues([...closedIssues, issue]);
 
-// }
+
+  return (
+    <div>
+    <Heading>"My Wallet"</Heading>
+    <Card.Root width="320px" variant={"outline"} key={"outline"}>
+      <Card.Body gap="2">
+        {/* <Avatar
+          src="https://picsum.photos/200/300"
+          name="Nue Camp"
+          size="lg"
+          shape="rounded"
+        /> */}
+         {walletBalance} XRP
+      </Card.Body>
+      {/* <Card.Footer justifyContent="flex-end">
+        <Button variant="outline">View</Button>
+        <Button colorScheme="blue" onClick={() => onSend(issueInfo, issueInfo.bounty)}>Close</Button>
+      </Card.Footer> */}
+    </Card.Root>
+    </div>
+  )
+}
+function AccountDisplay({walletBalance}){
+  console.log("walletdsiply ", {walletBalance});
+
+  return (
+    <Provider>
+      <Box p={4}>
+        {/* <Heading>{}</Heading> */}
+        <Flex>
+          <Stack spacing={4} w="75%">
+            <WalletDisplay walletBalance={walletBalance}/>
+          </Stack>
+        </Flex>
+      </Box>
+    </Provider>
+  );
+}
 
 function App() {
    // set up source wallet
    // create state var destinationAddress - value of dest wallet 
    // init as ''
    const SOURCE_SEED = "sEdVND7M6aDSV3xbNpYUzrWYtm1Mbo6"; // rUvc2W7pr6aNK2bfncmntdidfkXYAfFNR1
-    const USER_SEED = 'sEdTr8wYNvu2bKkUY8WRFpyenQUTSNy';  //rEuHyqbdAJfvsbzRLkD9aHDZPMyNJM83H2
+  const USER_SEED = 'sEdTr8wYNvu2bKkUY8WRFpyenQUTSNy';  //rEuHyqbdAJfvsbzRLkD9aHDZPMyNJM83H2
 
    const { sourceWallet, setSourceWallet, userWallet, setUserWallet } = useWallet();
-
+   const {openIssues, setOpenIssues, closedIssues, setClosedIssues} = useIssues();
    const [transactionStatus, setTransactionStatus] = useState('');
    const [sending, setSending] = useState(false);
-
-   const {openIssues, setOpenIssues, closedIssues, setClosedIssues} = useIssues();
-// add args amount
+  const [walletBalance, setWalletBalance] = useState(null);
 
   useEffect(() => {
-    // Initialize wallets once
+    
     try {
       setSourceWallet(Wallet.fromSeed(SOURCE_SEED));
       setUserWallet(Wallet.fromSeed(USER_SEED));
@@ -133,6 +182,26 @@ function App() {
     }
   }, [setSourceWallet, setUserWallet]);
 
+  console.log("source, user:  ", sourceWallet,userWallet);
+
+  
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (!userWallet || !userWallet.address) {
+        return; // If the userWallet is not yet set, don't fetch balance
+      }
+      try {
+        const client = new Client("wss://s.altnet.rippletest.net:51233");
+        await client.connect();
+        const balances = await client.getBalances(userWallet.address);
+        setWalletBalance(balances[0]?.value);  // Assuming the first balance is the one you want
+        await client.disconnect();
+      } catch (error) {
+        console.error("Error fetching balance:", error);
+      }
+    };
+    fetchBalance();
+  }, []); 
 
   async function sendPayment(amount){
     console.log("sp amount", amount); // UNDEFINED
@@ -143,7 +212,6 @@ function App() {
     setTransactionStatus('Sending XRP...');
     const client = new xrpl.Client("wss://s.altnet.rippletest.net:51233");
 
-    console.log("source, user:  ", sourceWallet,userWallet);
     // SOURCE AND USER ARE BOTH NULL, ISSUE IS UNDEFINED
     try {
       // Connect to the XRP Ledger
@@ -159,20 +227,20 @@ function App() {
       const signed = sourceWallet.sign(prepared)
       console.log("Identifying hash:", signed.hash)
       console.log("Signed blob:", signed.tx_blob)
-
+ // WALLET BALANCE ONLY SET WHEN SEND PAYMENT
       const tx = await client.submitAndWait(signed.tx_blob)
-
       // Check transaction results -------------------------------------------------
       const balances = await client.getBalances(userWallet.address);
       console.log("Transaction result:", tx.result.meta.TransactionResult)
       console.log("Balance changes:", JSON.stringify(xrpl.getBalanceChanges(tx.result.meta), null, 2))
       balances.forEach((balance) => {
+        setWalletBalance(balance.value)
         console.log(`Currency: ${balance.currency}`);
         console.log(`Value: ${balance.value}`);
         console.log(`Issuer: ${balance.issuer}`);
         console.log('---');
       });
-
+      // setUserWallet(userWallet);
     } catch (error) {
         console.error("Error sending payment: ", error);
     } finally {
@@ -193,18 +261,12 @@ function App() {
       setClosedIssues([...closedIssues, issue]);
   
   }
-  // const [openIssues, setOpenIssues] = useState([
-  //   {title: 'Issue 1', description: "descr 1", repo:"testrepo", status:"open", bounty:"10"},
-  //   {title: 'Issue 2', description: "descr 2", repo:"testrepo", status:"open", bounty:"20"},
-  //   {title: 'Issue 3', description: "descr 3", repo:"testrepo", status:"open", bounty:"30"},
-  // ]);
  
-  // const [closedIssues, setClosedIssues] = useState([]);
 
     return (
       <Provider>
         <WalletProvider>
-          <IssueProvider>
+        <IssueProvider>
         <div className="App">
           <header className="App-header">
             <Text>Issue XRP</Text>
@@ -213,7 +275,7 @@ function App() {
             
               <Taskboard onSend={closeIssue} issues={openIssues} boardTitle="Your Issues"/>
               <Taskboard onSend={closeIssue}  issues={closedIssues} boardTitle="Closed Issues"/>
-              {/* add my wallet  */}
+              <AccountDisplay walletBalance={walletBalance}/>
             </SimpleGrid>
             
           </header>
