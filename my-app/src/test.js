@@ -14,6 +14,7 @@ import { WalletProvider } from './WalletContext';
 import { useWallet } from './WalletContext';
 import { IssueProvider, useIssues } from './IssueContext';
 import { useEffect } from 'react';
+
 // import { Avatar } from "./components/ui/avatar"
 // export keyword makes function global
 // default means main
@@ -34,21 +35,22 @@ import { useEffect } from 'react';
 
 const xrpl = require("xrpl")
 
+
 function getRepositoryName(issue) {
   const repositoryUrl = issue.repository_url;
   const repoName = repositoryUrl.split('/').pop();
   return repoName;
 }
 
-
-function TaskCard({onSend, issueInfo }) {
+function TaskCard({onSend, issueInfo, bounty}) {
 // function TaskCard({onSend, title, description, repo, status, bounty }) {
-   const bounty_text = issueInfo.bounty + " XRP";
-  // console.log("bounty text ", bounty_text)
-  // console.log("issue info: ", issueInfo);
-  // const repo_name = getRepositoryName(issueInfo);
-  // const issue_id = repo_name + " #" + issueInfo.number;
-  // console.log("issue id", issue_id);
+  const bounty_text = bounty + " XRP";
+  console.log("bounty text ", bounty_text)
+  console.log("issue info: ", issueInfo);
+  const repo_name = getRepositoryName(issueInfo);
+  const issue_id = repo_name + " #" + issueInfo.number;
+  console.log("issue id", issue_id);
+  console.log("issue info: ", issueInfo);
 
   return (
     <Card.Root width="320px" variant={"elevated"} key={"elevated"}>
@@ -61,8 +63,8 @@ function TaskCard({onSend, issueInfo }) {
         /> */}
          <Grid templateColumns="67% 33% 1fr" gap={4} p={4}>
           <div>
+          <Card.Description>{issue_id}</Card.Description>
             <Card.Title mb="2">{issueInfo.title}</Card.Title>
-            <Card.Description>{issueInfo.description}</Card.Description>
           </div>
           <Text>{bounty_text}</Text>
 
@@ -70,7 +72,7 @@ function TaskCard({onSend, issueInfo }) {
       </Card.Body>
       <Card.Footer justifyContent="flex-end">
         <Button variant="outline">View</Button>
-        <Button colorScheme="blue" onClick={() => onSend(issueInfo, issueInfo.bounty)}>Close</Button>
+        <Button colorScheme="blue" onClick={() => onSend(issueInfo, bounty)}>Close</Button>
       </Card.Footer>
     </Card.Root>
   )
@@ -78,9 +80,10 @@ function TaskCard({onSend, issueInfo }) {
 
 
 function Taskboard({onSend, issues, boardTitle}) {
+  console.log("taskboard issues: ", issues);
+
   return (
     <Provider>
-
       <Box p={4}>
         <Heading>{boardTitle}</Heading>
         <Flex>
@@ -95,7 +98,7 @@ function Taskboard({onSend, issues, boardTitle}) {
                 // description={issue.description} 
                 // repo={issue.repo}
                 // status={issue.status}
-                // bounty={issue.bounty}
+                bounty={"10"}
               />
             ))}
           </Stack>
@@ -169,6 +172,21 @@ function AccountDisplay({walletBalance}){
   );
 }
 
+
+function PopUp(closeSuccess){
+  var dialog = "";
+
+  if (closeSuccess){
+    dialog = ("Congrats on contributing! You received some XRP.");
+  } else{
+    dialog = ("Close Invalid. Try closing the issue on Github.");
+  }
+  console.log("dialog: ", dialog);
+
+ 
+}
+
+
 function App() {
    // set up source wallet
    // create state var destinationAddress - value of dest wallet 
@@ -184,7 +202,6 @@ function App() {
   const username = "ellal1688" // hardcoded for now
 
   useEffect(() => {
-    
     try {
       setSourceWallet(Wallet.fromSeed(SOURCE_SEED));
       setUserWallet(Wallet.fromSeed(USER_SEED));
@@ -264,15 +281,68 @@ function App() {
   function closeIssue(issue, bounty){
     // const {openIssues, setOpenIssues, closedIssues, setClosedIssues} = useIssues();
       // sends payment
+    const closeSuccess = false;
+    if (issue.closed_by && issue.closed_by == username){
+      closeSuccess = true;
+    }
+    // PopUp(closeSuccess);
+
+    if (closeSuccess){
+      // sends payment
       sendPayment(bounty);
       console.log("bounty: ", bounty);
       console.log("issue: ", issue);
 
       setOpenIssues(openIssues.filter(item => item !== issue));
       setClosedIssues([...closedIssues, issue]);
-  
+    }
   }
  
+  const [repoIssues, setRepoIssues] = useState(null);
+  async function getIssuesFromGitHub(owner, repo) {
+    const url = `https://api.github.com/repos/${owner}/${repo}/issues`;
+    
+    try {
+      console.log("before retriving github issues ");
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Network response failed');
+      }
+      // Get the JSON data from the response
+      const issues =(await response.json());
+      // Process the issues data
+      console.log('GitHub Issues:', issues);
+      setRepoIssues(issues);
+      return issues;
+    } catch (error) {
+      console.error('Error fetching issues:', error);
+    }
+  }
+  
+  useEffect(() => {
+    const fetchIssues = async () => {
+      try {
+        const issues = await getIssuesFromGitHub('ellal1688', 'xrpl-test-repo'); // Replace with your repository details
+        setRepoIssues(issues); // Set the repoIssues state with fetched data
+      } catch (error) {
+        console.error("Error loading repo issues:", error);
+      }
+    };
+
+    fetchIssues();
+  }, []); // Empty dependency array ensures this effect only runs once
+  // REPO ISSUES IS NULL
+  
+  useEffect(() => {
+      // Ensure repoIssues is available before setting openIssues
+      if (repoIssues) {
+        setOpenIssues(repoIssues); // Update openIssues after repoIssues is updated
+      }
+    }, [repoIssues]); // This effect runs when repoIssues changes
+
+    console.log("Repo Issues:", repoIssues);
+    console.log("Open Issues:", openIssues);
+
 
     return (
       <Provider>

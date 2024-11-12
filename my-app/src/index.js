@@ -11,10 +11,8 @@ root.render(
   // <React.StrictMode>
     <WalletProvider>
     <IssueProvider>
-
     <App />
     </IssueProvider>
-
     </WalletProvider>
   // </React.StrictMode>
 );

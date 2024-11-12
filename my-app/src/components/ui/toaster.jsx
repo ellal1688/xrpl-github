@@ -1,3 +1,6 @@
+
+/* eslint-disable no-unused-expressions*/
+/* eslint-disable import/first*/
 function _optionalChain(ops) {
   let lastAccessLHS = undefined
   let value = ops[0]
@@ -20,6 +23,7 @@ function _optionalChain(ops) {
   return value
 }
 ;('use client')
+
 
 import {
   Toaster as ChakraToaster,
@@ -68,3 +72,5 @@ export const Toaster = () => {
     </Portal>
   )
 }
+/* eslint-enable  no-unused-expressions*/
+/* eslint-enable import/first*/
