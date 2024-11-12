@@ -2,6 +2,12 @@
 
 A platform to encourage open-source code contribution by tracking Github Issues. Receive XRP for closing an issue!
 
+In order to run this demo:
+1. Install React and Node.js
+2. Run the app from the my-app folder using "npm start"
+
+
+
 Inspiration - 
 Contributing to open-source code is not only one of the best ways to learn, it also benefits larger communities. It is a personal goal of mine to become involved in an open-source project, and I thought it would be useful to encourage people to get started doing so.
 
